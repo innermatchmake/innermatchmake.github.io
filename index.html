@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>INNERMATCH | CS:Source Matchmaking</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { 
+            margin: 0; padding: 0; 
+            background: black; 
+            color: white; 
+            font-family: "Trebuchet MS", sans-serif;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 10%; background: #000; border-bottom: 1px solid #222;
+            position: relative; z-index: 10;
+        }
+
+        .logo { font-size: 24px; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; }
+
+        .btn-steam-login {
+            background: #ff7e00; color: black; padding: 10px 20px;
+            border-radius: 8px; text-decoration: none; font-weight: bold;
+            font-size: 13px; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;
+        }
+
+        .btn-steam-login:hover { background: #e67200; transform: translateY(-2px); }
+
+        .soldier-bg {
+            position: absolute; left: -50px; bottom: 0; height: 95vh; z-index: 1;
+            filter: blur(2px) brightness(0.6); 
+            -webkit-mask-image: linear-gradient(to top, transparent 5%, black 40%);
+            mask-image: linear-gradient(to top, transparent 5%, black 40%);
+            object-fit: contain;
+        }
+
+        .wrapper {
+            position: relative; z-index: 2; padding: 0 60px;
+            height: calc(100vh - 60px); display: flex; flex-direction: column; box-sizing: border-box;
+        }
+
+        .main-section { margin-top: 100px; margin-left: 35%; }
+        h1 { font-size: 72px; margin: 0; line-height: 0.9; }
+        .desc { margin-top: 20px; font-size: 20px; max-width: 600px; color: #efefef; line-height: 1.3; }
+
+        .stats-row {
+            margin-top: auto; margin-bottom: 60px; display: flex;
+            gap: 100px; font-size: 42px; text-transform: uppercase;
+        }
+
+        footer { position: absolute; bottom: 15px; left: 30px; font-size: 11px; color: #666; z-index: 3; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo">INNERMATCH</div>
+        <a href="/auth/steam" id="loginBtnTop" class="btn-steam-login">Войти через Steam</a>
+    </div>
+
+    <img src="char.png" class="soldier-bg" alt="CSS Character">
+
+    <div class="wrapper">
+        <div class="main-section">
+            <h1>Безранговый CS:Source<br>матчмейкинг</h1>
+            <p class="desc">
+                Попробуй сыграть в CS:Source 5 на 5! Игра идет до 16 раундов,<br>
+                и тут вы можете сыграть на 8 картах - Dust II, CPL Strike,<br>
+                Aztec, Nuke, Train, Cobblestone, Piranesi и Inferno.
+            </p>
+            
+            <a href="/auth/steam" id="loginBtnMain" class="btn-steam-login" style="display:inline-block; margin-top:40px; padding:20px 50px; font-size:36px; border-radius:12px;">Войти через Steam</a>
+        </div>
+
+        <div class="stats-row">
+            <div>В поиске: <span id="onlineCount" style="color:#ff7e00">0</span></div>
+            <div>Сейчас матчей: <span style="color:#ff7e00">0</span></div>
+        </div>
+    </div>
+
+    <footer>*Фото спецназовца взято с обложки игры Counter-Strike Source от Valve Software.</footer>
+
+    <script>
+        const socket = io();
+        socket.on('queueUpdate', (count) => {
+            document.getElementById('onlineCount').innerText = count;
+        });
+
+        // Если юзер уже залогинен, меняем кнопки на "ИГРАТЬ"
+        fetch('/api/user').then(res => res.json()).then(user => {
+            if(user) {
+                const btns = [document.getElementById('loginBtnTop'), document.getElementById('loginBtnMain')];
+                btns.forEach(btn => {
+                    btn.innerText = "НАЙТИ МАТЧ";
+                    btn.href = "match.html";
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INNERMATCH - Profile</title>
+    <style>
+        body { background-color: #000; color: white; font-family: "Trebuchet MS", sans-serif; margin: 0; overflow-x: hidden; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 10%; background: #000; border-bottom: 1px solid #222; }
+        .logo { font-size: 24px; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; }
+        .nav-buttons { display: flex; gap: 30px; }
+        .nav-btn { color: #888; text-decoration: none; font-weight: bold; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; transition: 0.3s; }
+        .nav-btn:hover { color: #fff; }
+        .nav-btn.active { color: #ff7e00; }
+        .profile-container { display: flex; justify-content: center; gap: 40px; padding: 60px 5%; }
+        .profile-card { background: #111; border-radius: 30px; padding: 35px; width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+        .user-info { display: flex; align-items: center; gap: 20px; margin-bottom: 25px; }
+        .avatar-box { width: 85px; height: 85px; background: #333; border-radius: 12px; overflow: hidden; border: 2px solid #222; }
+        .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+        .nickname-block { flex-grow: 1; }
+        .nick-row { display: flex; align-items: center; gap: 10px; font-size: 28px; font-weight: bold; }
+        .flag-icon { width: 24px; height: auto; cursor: pointer; border: 1px solid #333; vertical-align: middle; }
+        .verify-badge { width: 20px; height: auto; vertical-align: middle; }
+        .profile-desc { color: #888; font-size: 14px; margin-top: 5px; cursor: pointer; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .steam-link-btn img { width: 30px; height: 30px; filter: brightness(1.2); }
+        .win-info { margin-top: 25px; font-size: 18px; color: #aaa; }
+        .win-info b { color: #fff; }
+        .win-streak { font-size: 32px; font-weight: bold; margin-top: 10px; letter-spacing: 5px; display: flex; height: 40px; align-items: center; }
+        .big-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px 15px; margin-top: 35px; border-top: 1px solid #222; padding-top: 25px; }
+        .stat-item { display: flex; flex-direction: column; }
+        .stat-label { font-size: 11px; color: #555; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+        .stat-val { font-size: 26px; font-weight: bold; color: #ff7e00; }
+        .history-card { border: 2px solid #ff7e00; border-radius: 30px; padding: 30px; width: 400px; }
+        .history-card h3 { margin-top: 0; color: #888; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; }
+        .match-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #222; }
+        .match-map-img { width: 60px; height: 34px; object-fit: cover; border-radius: 4px; border: 1px solid #333; }
+        .map-name { flex-grow: 1; margin-left: 15px; font-size: 17px; font-weight: bold; }
+        .match-score { font-size: 18px; font-weight: bold; font-family: monospace; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; }
+        .modal-content { background: #111; border: 1px solid #333; width: 350px; padding: 40px; border-radius: 25px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+        select, input { width: 100%; padding: 12px; background: #000; border: 1px solid #444; color: white; margin: 20px 0; border-radius: 10px; font-size: 16px; }
+        .save-btn { background: #ff7e00; color: #000; border: none; padding: 14px; font-weight: bold; cursor: pointer; width: 100%; border-radius: 10px; text-transform: uppercase; }
+        .close-btn { color: #555; background: none; border: none; margin-top: 15px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="logo">INNERMATCH</div>
+    <div class="nav-buttons">
+        <a href="match.html" class="nav-btn">Поиск матча</a>
+        <a href="friends.html" class="nav-btn">Друзья</a>
+        <a href="profile.html" class="nav-btn active">Профиль</a>
+    </div>
+</div>
+
+<div class="profile-container">
+    <div class="profile-card">
+        <div class="user-info">
+            <div class="avatar-box">
+                <img id="userAvatar" src="" alt="">
+            </div>
+            <div class="nickname-block">
+                <div class="nick-row">
+                    <span id="display-nick">Загрузка...</span>
+                    <img id="display-flag" class="flag-icon" onclick="openModal('modal-flag')" src="flags/un.gif">
+                    <span id="verify-container"></span>
+                </div>
+                <div class="profile-desc" id="display-desc" onclick="openModal('modal-desc')">...</div>
+            </div>
+            <a id="steam-link" href="#" target="_blank" class="steam-link-btn">
+                <img src="icons/steam.gif" alt="Steam" onerror="this.src='https://raw.githubusercontent.com/TristanB97/Steam-Icons/master/Steam_Icon_Grey.png'">
+            </a>
+        </div>
+
+        <div class="win-info">
+            <div>Матчи: <b id="matches-count">0</b></div>
+            <div>Победы: <b id="wins-count">0</b></div>
+            <div class="win-streak" id="win-streak">.....</div>
+        </div>
+
+        <div class="big-stats">
+            <div class="stat-item"><span class="stat-label">Winrate</span><span class="stat-val" id="winrate-val">0%</span></div>
+            <div class="stat-item"><span class="stat-label">K/D</span><span class="stat-val" id="stat-kd">0.00</span></div>
+            <div class="stat-item"><span class="stat-label">AVG Kills</span><span class="stat-val" id="stat-avg">0</span></div>
+            <div class="stat-item"><span class="stat-label">HS%</span><span class="stat-val" id="stat-hs">0%</span></div>
+            <div class="stat-item"><span class="stat-label">K/R</span><span class="stat-val" id="stat-kr">0.00</span></div>
+            <div class="stat-item"><span class="stat-label">ADR</span><span class="stat-val" id="stat-adr">0</span></div>
+        </div>
+    </div>
+
+    <div class="history-card">
+        <h3>Последние игры</h3>
+        <div id="match-history-list">
+            <div style="color:#444; padding:20px; text-align:center;">Игр пока нет</div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-flag" class="modal">
+    <div class="modal-content">
+        <h2>Выбор страны</h2>
+        <select id="country-select"></select>
+        <button class="save-btn" onclick="applyFlag()">СОХРАНИТЬ</button>
+        <button class="close-btn" onclick="closeModal('modal-flag')">ОТМЕНА</button>
+    </div>
+</div>
+
+<div id="modal-desc" class="modal">
+    <div class="modal-content">
+        <h2>Твой статус</h2>
+        <input type="text" id="input-desc" maxlength="40" placeholder="Что у тебя на уме?">
+        <button class="save-btn" onclick="saveDescription()">СОХРАНИТЬ</button>
+        <button class="close-btn" onclick="closeModal('modal-desc')">ОТМЕНА</button>
+    </div>
+</div>
+
+<script>
+    const MY_STEAM_ID = "76561199801799601"; 
+
+    // ОБНОВЛЕННЫЙ СПИСОК СТРАН
+    const countriesMap = { 
+        "ua": "Украина", 
+        "ru": "Россия", 
+        "by": "Беларусь", 
+        "kz": "Казахстан", 
+        "us": "США", 
+        "pl": "Польша", 
+        "de": "Германия",
+        "jp": "Япония",
+        "gb": "Великобритания",
+        "cn": "Китай"
+    };
+
+    async function loadProfile() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('id');
+        
+        const response = await fetch(userId ? `/u/${userId}` : '/api/user');
+        const user = await response.json();
+
+        if (user) {
+            document.getElementById('display-nick').innerText = user.displayName;
+
+            const verifyContainer = document.getElementById('verify-container');
+            verifyContainer.innerHTML = '';
+            if (user.steamId === MY_STEAM_ID || user.isVerified === true) {
+                const v = document.createElement('img');
+                v.src = 'icons/v.gif';
+                v.className = 'verify-badge';
+                verifyContainer.appendChild(v);
+            }
+
+            const flagImg = document.getElementById('display-flag');
+            flagImg.src = user.country ? `flags/${user.country.toLowerCase()}.gif` : 'flags/un.gif';
+
+            document.getElementById('userAvatar').src = user.avatar;
+            document.getElementById('display-desc').innerText = user.description || "Нажми, чтобы изменить статус";
+            document.getElementById('steam-link').href = `https://steamcommunity.com/profiles/${user.steamId}`;
+            document.getElementById('matches-count').innerText = user.matches || 0;
+            document.getElementById('wins-count').innerText = user.wins || 0;
+            document.getElementById('stat-kd').innerText = (user.kd || 0).toFixed(2);
+            
+            if (user.matches > 0) {
+                const wr = Math.round((user.wins / user.matches) * 100);
+                document.getElementById('winrate-val').innerText = wr + "%";
+            }
+
+            renderDynamicHistory(user.matchHistory || []);
+        } else {
+            window.location.href = '/';
+        }
+    }
+
+    function renderDynamicHistory(history) {
+        const historyContainer = document.getElementById('match-history-list');
+        const streakContainer = document.getElementById('win-streak');
+
+        if (!history || history.length === 0) {
+            historyContainer.innerHTML = '<div style="color:#444; padding:20px; text-align:center;">Игр пока нет</div>';
+            streakContainer.innerHTML = '<span style="color:#333">.....</span>';
+            return;
+        }
+
+        historyContainer.innerHTML = history.slice().reverse().map(m => {
+            const isWin = m.myScore > m.oppScore;
+            return `
+                <div class="match-row">
+                    <img src="maps/${m.map}.png" class="match-map-img" onerror="this.src='maps/dust2.png'">
+                    <span class="map-name">${m.map}</span>
+                    <span class="match-score" style="color: ${isWin ? '#00ff00' : '#ff4444'}">${m.myScore}-${m.oppScore}</span>
+                </div>
+            `;
+        }).join('');
+
+        const last5 = history.slice(-5).reverse();
+        streakContainer.innerHTML = last5.map(m => {
+            const isWin = m.myScore > m.oppScore;
+            return `<span style="color: ${isWin ? '#00ff00' : '#ff4444'}">${isWin ? 'W' : 'L'}</span>`;
+        }).join('');
+        
+        for(let i = last5.length; i < 5; i++) {
+            streakContainer.innerHTML += '<span style="color:#333">.</span>';
+        }
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'block'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    async function applyFlag() {
+        const code = document.getElementById('country-select').value;
+        await fetch('/api/update-profile', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ country: code })
+        });
+        location.reload();
+    }
+
+    async function saveDescription() {
+        const val = document.getElementById('input-desc').value;
+        await fetch('/api/update-profile', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ description: val })
+        });
+        document.getElementById('display-desc').innerText = val;
+        closeModal('modal-desc');
+    }
+
+    // Заполнение выпадающего списка
+    const select = document.getElementById('country-select');
+    Object.keys(countriesMap).forEach(code => {
+        let opt = document.createElement('option');
+        opt.value = code;
+        opt.innerText = countriesMap[code];
+        select.appendChild(opt);
+    });
+
+    window.onload = loadProfile;
+</script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>INNERMATCH | Найти матч</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { background: #000; color: #fff; font-family: "Trebuchet MS", sans-serif; margin: 0; padding: 0; user-select: none; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 10%; border-bottom: 1px solid #222; }
+        .logo-text { font-size: 24px; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; color: white; text-decoration: none; }
+        .nav-buttons { display: flex; gap: 30px; }
+        .nav-btn { color: #888; text-decoration: none; font-weight: bold; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; transition: 0.3s; }
+        .nav-btn:hover { color: #fff; }
+        .nav-btn.active { color: #ff7e00; }
+
+        .container { padding: 40px; }
+        
+        .map-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px; max-width: 1100px; margin: 0 auto; transition: 0.5s; }
+        .map-grid.locked { pointer-events: none; opacity: 0.5; filter: grayscale(0.8); }
+        
+        .map-card { position: relative; text-align: center; cursor: pointer; transition: 0.3s; }
+        .map-card img { width: 100%; border: 2px solid #222; display: block; border-radius: 12px; transition: 0.3s; }
+        .map-card p { font-size: 18px; margin: 10px 0; text-transform: uppercase; font-weight: bold; color: #555; transition: 0.3s; }
+        
+        .check { 
+            position: absolute; top: 12px; left: 12px; background: #ff7e00; color: #000; 
+            width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; border: 2px solid #fff; z-index: 2; border-radius: 6px; 
+            opacity: 0; transform: scale(0); transition: 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .map-card.selected img { border-color: #ff7e00; box-shadow: 0 0 20px rgba(255,126,0,0.4); }
+        .map-card.selected p { color: #fff; }
+        .map-card.selected .check { opacity: 1; transform: scale(1); }
+
+        .search-wrapper { text-align: center; max-width: 1100px; margin: 80px auto; }
+        .btn-search { 
+            background: #ff7e00; color: #000; padding: 22px 80px; font-size: 26px; 
+            font-weight: 900; border-radius: 18px; cursor: pointer; border: none; 
+            text-transform: uppercase; font-family: inherit; transition: 0.3s; min-width: 450px;
+            box-shadow: 0 4px 15px rgba(255,126,0,0.3);
+        }
+        .btn-search:hover { background: #ffa44a; transform: translateY(-3px); box-shadow: 0 8px 25px rgba(255,126,0,0.5); }
+        .btn-search.searching { background: #111; color: #ff7e00; border: 2px solid #ff7e00; box-shadow: none; animation: pulse 2s infinite; }
+
+        @keyframes pulse {
+            0% { border-color: #ff7e00; }
+            50% { border-color: #552a00; }
+            100% { border-color: #ff7e00; }
+        }
+
+        /* МОДАЛКА ПРИНЯТИЯ МАТЧА */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
+        .modal-content { background: #0a0a0a; border: 2px solid #ff7e00; border-radius: 40px; padding: 50px; width: 550px; text-align: center; box-shadow: 0 0 80px rgba(255,126,0,0.15); position: relative; }
+        
+        .player-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 35px 0; }
+        .player-slot { width: 100%; aspect-ratio: 1/1; background: #1a1a1a; border-radius: 12px; border: 1px solid #333; position: relative; overflow: hidden; transition: 0.4s; }
+        .player-slot img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: 0.5s; transform: scale(1.2); }
+        .player-slot.accepted { border-color: #ff7e00; box-shadow: 0 0 15px rgba(255,126,0,0.4); }
+        .player-slot.accepted img { opacity: 1; transform: scale(1); }
+
+        #acceptTimer { font-size: 14px; color: #444; margin-top: 15px; font-weight: bold; }
+
+        .btn-accept { background: #ff7e00; color: #000; padding: 20px; font-size: 24px; font-weight: 900; border-radius: 18px; border: none; cursor: pointer; width: 100%; transition: 0.3s; }
+        .btn-accept:hover:not(:disabled) { transform: scale(1.02); background: #ffa44a; }
+        .btn-accept:disabled { background: #222; color: #555; cursor: default; }
+
+        .copy-btn { background: #111; border: 1px solid #ff7e00; color: #ff7e00; padding: 18px; cursor: pointer; font-size: 18px; font-weight: bold; border-radius: 15px; transition: 0.3s; width: 100%; }
+        .copy-btn:hover { background: #ff7e00; color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a href="/" class="logo-text">INNERMATCH</a>
+    <div class="nav-buttons">
+        <a href="match.html" class="nav-btn active">Поиск матча</a>
+        <a href="friends.html" class="nav-btn">Друзья</a>
+        <a href="profile.html" class="nav-btn">Профиль</a>
+    </div>
+</div>
+
+<div class="container">
+    <div class="map-grid" id="mapGrid">
+        <div class="map-card selected" data-id="dust2" onclick="toggleMap(this)"><div class="check">✓</div><img src="maps/dust2.png"><p>Dust II</p></div>
+        <div class="map-card selected" data-id="cpl_strike" onclick="toggleMap(this)"><div class="check">✓</div><img src="maps/cpl_strike.png"><p>CPL Strike</p></div>
+        <div class="map-card" data-id="aztec" onclick="toggleMap(this)"><div class="check">✓</div><img src="maps/aztec.png"><p>Aztec</p></div>
+        <div class="map-card" data-id="nuke" onclick="toggleMap(this)"><div class="check">✓</div><img src="maps/nuke.png"><p>Nuke</p></div>
+        <div class="map-card" data-id="train" onclick="toggleMap(this)"><div class="check">✓</div><img src="maps/train.png"><p>Train</p></div>
+        <div class="map-card" data-id="cbble" onclick="toggleMap(this)"><div class="check">✓</div><img src="maps/cbble.png"><p>Cobblestone</p></div>
+        <div class="map-card" data-id="piranesi" onclick="toggleMap(this)"><div class="check">✓</div><img src="maps/piranesi.png"><p>Piranesi</p></div>
+        <div class="map-card" data-id="inferno" onclick="toggleMap(this)"><div class="check">✓</div><img src="maps/inferno.png"><p>Inferno</p></div>
+    </div>
+
+    <div class="search-wrapper">
+        <button class="btn-search" id="searchBtn" onclick="handleSearchClick()">Начать поиск</button>
+    </div>
+</div>
+
+<audio id="matchSound" src="ding.mp3" preload="auto"></audio>
+
+<div class="modal-overlay" id="matchModal">
+    <div class="modal-content">
+        <div id="step1">
+            <div style="font-size:36px; margin-bottom:5px; font-weight:900; letter-spacing:3px;">МАТЧ НАЙДЕН</div>
+            <div id="curMap" style="color:#ff7e00; margin-bottom:20px; font-size:22px; font-weight:bold; text-transform: uppercase; letter-spacing: 1px;">...</div>
+            
+            <div class="player-grid" id="pGrid">
+                <div class="player-slot" id="slot-0"><img src=""></div><div class="player-slot" id="slot-1"><img src=""></div><div class="player-slot" id="slot-2"><img src=""></div><div class="player-slot" id="slot-3"><img src=""></div><div class="player-slot" id="slot-4"><img src=""></div>
+                <div class="player-slot" id="slot-5"><img src=""></div><div class="player-slot" id="slot-6"><img src=""></div><div class="player-slot" id="slot-7"><img src=""></div><div class="player-slot" id="slot-8"><img src=""></div><div class="player-slot" id="slot-9"><img src=""></div>
+            </div>
+            
+            <button class="btn-accept" id="acceptBtn" onclick="acceptMatch()">ПРИНЯТЬ</button>
+            <div id="acceptTimer">ОЖИДАНИЕ ИГРОКОВ...</div>
+        </div>
+
+        <div id="step2" style="display:none;">
+            <div style="font-size:32px; margin-bottom:10px; font-weight:900; color:#ff7e00;">МАТЧ ГОТОВ</div>
+            <p style="color: #888; margin-bottom: 25px;">Скопируйте IP и вставьте в консоль игры (~)</p>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <button class="copy-btn" id="ipBtn" onclick="copyIp()">Скопировать IP сервера</button>
+                <button class="btn-accept" onclick="location.reload()" style="font-size: 16px; background: #222; color: #fff;">ВЕРНУТЬСЯ В ГЛАВНОЕ МЕНЮ</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const socket = io();
+    let isSearching = false;
+    let searchTimer;
+    let searchSeconds = 0;
+    let currentServerIp = "127.0.0.1:27015";
+
+    function toggleMap(card) {
+        if (!isSearching) {
+            card.classList.toggle('selected');
+        }
+    }
+
+    function handleSearchClick() {
+        if (!isSearching) startSearch();
+        else stopSearch();
+    }
+
+    async function startSearch() {
+        const userRes = await fetch('/api/user');
+        const user = await userRes.json();
+        if (!user) return alert("Сначала войдите через Steam!");
+
+        const selectedMaps = Array.from(document.querySelectorAll('.map-card.selected')).map(m => m.dataset.id);
+        if (selectedMaps.length === 0) return alert("Выберите хотя бы одну карту!");
+
+        isSearching = true;
+        document.getElementById('mapGrid').classList.add('locked');
+        document.getElementById('searchBtn').classList.add('searching');
+        
+        searchSeconds = 0;
+        updateSearchBtnText();
+        searchTimer = setInterval(() => {
+            searchSeconds++;
+            updateSearchBtnText();
+        }, 1000);
+
+        socket.emit('startSearch', { maps: selectedMaps });
+    }
+
+    function stopSearch() {
+        isSearching = false;
+        clearInterval(searchTimer);
+        document.getElementById('mapGrid').classList.remove('locked');
+        document.getElementById('searchBtn').classList.remove('searching');
+        document.getElementById('searchBtn').innerText = "Начать поиск";
+        socket.emit('stopSearch');
+    }
+
+    function updateSearchBtnText() {
+        const m = Math.floor(searchSeconds / 60).toString().padStart(2, '0');
+        const s = (searchSeconds % 60).toString().padStart(2, '0');
+        document.getElementById('searchBtn').innerText = `ПОИСК... (${m}:${s}) — ОТМЕНА`;
+    }
+
+    function acceptMatch() {
+        socket.emit('acceptMatch');
+        document.getElementById('acceptBtn').innerText = "ПРИНЯТО";
+        document.getElementById('acceptBtn').disabled = true;
+    }
+
+    function copyIp() {
+        navigator.clipboard.writeText(`connect ${currentServerIp}`);
+        const btn = document.getElementById('ipBtn');
+        btn.innerText = "IP СКОПИРОВАН!";
+        btn.style.borderColor = "#fff";
+        setTimeout(() => { 
+            btn.innerText = "Скопировать IP сервера"; 
+            btn.style.borderColor = "#ff7e00";
+        }, 2000);
+    }
+
+    // --- SOCKET.IO ---
+
+    socket.on('matchFound', (data) => {
+        isSearching = false;
+        clearInterval(searchTimer);
+        
+        document.querySelectorAll('.player-slot').forEach(s => {
+            s.classList.remove('accepted');
+            s.querySelector('img').src = "";
+        });
+        document.getElementById('acceptBtn').innerText = "ПРИНЯТЬ";
+        document.getElementById('acceptBtn').disabled = false;
+        document.getElementById('step1').style.display = 'block';
+        document.getElementById('step2').style.display = 'none';
+
+        document.getElementById('curMap').innerText = "КАРТА: " + data.mapName;
+        document.getElementById('matchModal').style.display = 'flex';
+        
+        const audio = document.getElementById('matchSound');
+        audio.play().catch(() => console.log("Кликни на страницу для звука"));
+    });
+
+    socket.on('updateAccepted', (playersData) => {
+        playersData.forEach((player, index) => {
+            const slot = document.getElementById(`slot-${index}`);
+            if (player.accepted) {
+                slot.classList.add('accepted');
+                slot.querySelector('img').src = player.avatar;
+            }
+        });
+    });
+
+    socket.on('matchReady', (data) => {
+        currentServerIp = data.ip;
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step2').style.display = 'block';
+    });
+
+    socket.on('matchCancelled', () => {
+        alert("Один из игроков не принял матч. Возврат в поиск.");
+        document.getElementById('matchModal').style.display = 'none';
+        startSearch();
+    });
+</script>
+
+</body>
+</html>
